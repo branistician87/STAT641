@@ -1,0 +1,108 @@
+---
+title: "STAT641HW1"
+author: "Brandon Keck"
+format: pdf
+editor: visual
+---
+
+## Exercise 1.
+
+```{r}
+# non-parametric bootstrap for theta
+library(boot)
+set.seed(123) # set seed for reproducability
+x <- rgamma(200, shape = 2, scale = 5) # original data
+
+# non-parametric bootstrap
+theta_boot <- function(x, indices) {
+  mean(x[indices]) / 2
+}
+
+boot(data = x, statistic = theta_boot, R = 999)
+```
+
+
+
+```{r}
+# parametric bootstrap for theta
+library(boot)
+set.seed(123) # set seed for reproducability
+x <- rgamma(200, shape = 2, scale = 5) # original data
+
+boot_theta <- function(x) mean(x) / 2
+
+gamma_boot <- function(x, mle){ 
+  rgamma(length(x), shape = 2, scale = mle)
+}
+(b <- boot(x, boot_theta, R = 1000, sim = "parametric", ran.gen = gamma_boot,
+           mle = mean(x) / 2))
+
+# mean(b$t) # bootstrap estimate of theta
+
+# mean(b$t) - b$t0 # bootstrap bias estimate
+
+# sd(b$t) # parametric bootstrap SE
+```
+
+
+
+## Exercise 2.
+
+```{r, warning=FALSE, message=FALSE}
+library(resampledata)
+library(dplyr)
+data("Bangladesh")
+head(Bangladesh)
+chl <- with(Bangladesh, Chlorine[!is.na(Chlorine)])
+```
+
+
+
+### (a)
+
+```{r}
+# 95% confidence interval for mean chlorine level mu
+library(bootstrap)
+set.seed(123)
+
+bsample <- bootstrap(chl, 5000, mean)
+quantile(bsample$thetastar, probs = c(0.025, 0.975))
+```
+
+
+
+
+
+### (b)
+
+```{r}
+boot.bangladesh <- function(data, indices){
+  mean(data[indices])
+}
+set.seed(123)
+(bangladesh.boot <- boot(chl, boot.bangladesh, 5000))
+
+boot.ci(bangladesh.boot, index = 1, type = c("perc", "bca"))
+```
+
+
+
+```{r}
+# bootstrap-t
+pacman::p_load(boot, bootstrap)
+# Statistic: mean + SE
+mean_stat <- function(data, idx){
+  d <- data[idx]
+  est <- mean(d)
+  se <- sd(d) / sqrt(length(d))
+  c(est, se)
+}
+
+set.seed(123)
+boot_bangladesh <- boot(chl, statistic = mean_stat, R = 5000)
+boot.ci(boot_bangladesh, type = "stud")
+```
+
+
+
+All four intervals are similar towards the lower end. However, inspecting the BCa interval is shifted upward and has a larger endpoint compared to the other intervals. I would report the BCa interval because it has second order accuracy and corrects for both bias and skewness in the bootstrap distribution.
